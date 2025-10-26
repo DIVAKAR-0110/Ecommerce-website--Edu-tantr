@@ -1,0 +1,435 @@
+/* Add these styles to your existing Show.css file */
+
+/* Container and Layout */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  margin-bottom: 32px;
+}
+
+.loading, .error, .no-data {
+  text-align: center;
+  padding: 48px 24px;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-error);
+}
+
+/* Registrations Grid */
+.registrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .registrations-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card Improvements */
+.card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-card-border-inner);
+}
+
+.card__header h3 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  color: var(--color-text);
+}
+
+/* Info Group */
+.info-group {
+  margin-bottom: 20px;
+}
+
+.info-group p {
+  margin: 8px 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.info-group strong {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+/* Files Section */
+.files-section {
+  margin: 20px 0;
+  padding: 16px;
+  background-color: var(--color-secondary);
+  border-radius: var(--radius-base);
+}
+
+.files-section h4 {
+  margin: 0 0 12px 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+/* Meta Info */
+.meta-info {
+  margin: 16px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.meta-info p {
+  margin: 4px 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 32px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.close-btn:hover {
+  background-color: var(--color-secondary);
+  color: var(--color-text);
+}
+
+.close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-body pre {
+  background-color: var(--color-secondary);
+  padding: 16px;
+  border-radius: var(--radius-base);
+  overflow-x: auto;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* Status Summary Cards */
+.status-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.status-card {
+  flex: 1;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.status-card.pending {
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-card.approved {
+  background-color: rgba(40, 167, 69, 0.1);
+  border: 2px solid rgba(40, 167, 69, 0.3);
+}
+
+.status-card.rejected {
+  background-color: rgba(220, 53, 69, 0.1);
+  border: 2px solid rgba(220, 53, 69, 0.3);
+}
+
+.status-card .count {
+  font-size: 36px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.status-card .label {
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Admin Actions */
+.admin-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Success and Danger Buttons */
+.btn--success {
+  background-color: #28a745;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn--success:hover {
+  background-color: #218838;
+}
+
+.btn--success:active {
+  background-color: #1e7e34;
+}
+
+.btn--danger {
+  background-color: #dc3545;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn--danger:hover {
+  background-color: #c82333;
+}
+
+.btn--danger:active {
+  background-color: #bd2130;
+}
+
+/* Status Messages */
+.status-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-base);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+}
+
+.status-message.approved-message {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.status-message.rejected-message {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* Dialog Box */
+.dialog-box {
+  max-width: 500px;
+  width: 90%;
+}
+
+.dialog-box .modal-body p {
+  margin: 8px 0;
+  font-size: var(--font-size-md);
+}
+
+.dialog-box .form-group {
+  margin-top: 20px;
+}
+
+.dialog-box .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.dialog-box textarea.form-control {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  resize: vertical;
+  min-height: 100px;
+}
+
+.dialog-box textarea.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.dialog-box textarea.form-control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--color-secondary);
+}
+
+/* Dialog Actions */
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+
+.dialog-actions .btn {
+  min-width: 120px;
+}
+
+/* Modal Header with Icon */
+.modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* File Display */
+.file-display {
+  margin-bottom: 12px;
+}
+
+.file-display label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.file-image {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: var(--radius-base);
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition: transform var(--duration-fast) var(--ease-standard);
+  box-shadow: var(--shadow-xs);
+}
+
+.file-image:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .status-summary {
+    flex-direction: column;
+  }
+
+  .dialog-actions {
+    flex-direction: column;
+  }
+
+  .dialog-actions .btn {
+    width: 100%;
+  }
+
+  .admin-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-content {
+    max-height: 95vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 16px;
+  }
+
+  .status-card {
+    padding: 16px;
+  }
+
+  .status-card .count {
+    font-size: 28px;
+  }
+
+  .card__header h3 {
+    font-size: var(--font-size-lg);
+  }
+
+  .file-image {
+    max-width: 150px;
+    max-height: 120px;
+  }
+}

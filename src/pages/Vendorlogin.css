@@ -1,0 +1,167 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background: #e0f7fa;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  margin: 20px auto;
+}
+
+/* Left Panel */
+.left-panel {
+  flex: 1;
+  background: #ffffff;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.left-panel .logo {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: #d81b60;
+  margin-bottom: 20px;
+}
+
+.left-panel h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.left-panel form {
+  display: flex;
+  flex-direction: column;
+}
+
+.left-panel label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.left-panel input {
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  font-size: 1rem;
+}
+
+.left-panel input:focus {
+  border-color: #d81b60;
+}
+
+.options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.options a {
+  text-decoration: none;
+  color: #d81b60;
+  font-weight: 500;
+}
+
+.login-btn {
+  padding: 12px;
+  background: #d81b60;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.login-btn:hover {
+  background: #c2185b;
+}
+
+.social-text {
+  text-align: center;
+  margin: 20px 0 10px 0;
+  font-weight: 500;
+  color: #666;
+}
+
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.social-buttons button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.2rem;
+  transition: 0.3s;
+}
+
+.social-buttons .google { background: #db4437; }
+.social-buttons .facebook { background: #4267b2; }
+.social-buttons .apple { background: #000; }
+
+.social-buttons button:hover {
+  transform: scale(1.1);
+}
+
+.signup-text {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.signup-text a {
+  color: #d81b60;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.message {
+  color: green;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  background: linear-gradient(135deg, #81d4fa, #f48fb1);
+  color: #fff;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.right-panel h2 {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.right-panel p {
+  font-size: 1.2rem;
+  text-align: center;
+  max-width: 300px;
+}

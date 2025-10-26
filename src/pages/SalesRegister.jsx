@@ -34,6 +34,8 @@ const [signatureDone, setSignatureDone] = useState(false);
 const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
 
+const [showPassword, setShowPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);  // ← ADD THIS
 
 
 
@@ -625,7 +627,7 @@ function toggleCategory(category) {
         
         {step === 1 && (
   <section className="sr-section">
-    <h2 className="sr-section-title">1) Business Details</h2>
+    <h2 className="sr-section-title">1) mBusiness Details</h2>
     
    <div className="sr-form-group">
   <label className="sr-label">Choose Your Business Categories * (Select Multiple)</label>
@@ -681,20 +683,6 @@ function toggleCategory(category) {
   </div>
 )}
 
-
-{/* Show custom textbox if "All Others (Specify)" is selected */}
-{form.categories.includes('All Others (Specify)') && (
-  <div className="sr-form-group sr-custom-category-input">
-    <label className="sr-label">Specify Your Category *</label>
-    <input 
-      className="sr-input"
-      value={form.customCategory} 
-      onChange={(e) => handleChange('customCategory', e.target.value)} 
-      placeholder="Enter your business category..."
-    />
-    {errors.customCategory && <div className="sr-err">{errors.customCategory}</div>}
-  </div>
-)}
 
 
     <h3 className="sr-subsection-title">Retail Platform</h3>
@@ -1225,22 +1213,25 @@ function toggleCategory(category) {
 
     <div className="sr-signature-container">
       <SignatureCanvas
-        ref={sigPadRef}
-        penColor="black"
-        backgroundColor="#ffffff"
-        canvasProps={{
-          className: 'sr-signature-canvas',
-          width: 600,
-          height: 200,
-        }}
-        onEnd={() => {
-          if (sigPadRef.current && !sigPadRef.current.isEmpty()) {
-            const dataURL = sigPadRef.current.toDataURL();
-            handleChange('digitalSignature', dataURL);
-            setSignatureDone(false); // Reset done state when new signature is drawn
-          }
-        }}
-      />
+  ref={sigPadRef}
+  penColor="black"
+  backgroundColor="#ffffff"
+  minWidth={0.5}           // ← ADD THIS - Minimum pen thickness
+  maxWidth={2.5}           // ← ADD THIS - Maximum pen thickness
+  velocityFilterWeight={0.7}  // ← ADD THIS - Smoother strokes
+  canvasProps={{
+    className: 'sr-signature-canvas',
+    width: 600,
+    height: 200,
+  }}
+  onEnd={() => {
+    if (sigPadRef.current) {
+      const dataURL = sigPadRef.current.toDataURL();
+      handleChange('digitalSignature', dataURL);
+    }
+  }}
+/>
+
     </div>
 
     <div className="sr-signature-actions">
@@ -1283,29 +1274,70 @@ function toggleCategory(category) {
               <h2 className="sr-section-title">7) Account Security</h2>
               <p className="sr-muted">Please create a secure password for your account.</p>
 
+              
               <div className="sr-form-group">
-                <label className="sr-label">Password *</label>
-                <input
-                  type="password"
-                  className="sr-input"
-                  value={form.password}
-                  onChange={(e) => handleChange('password', e.target.value)}
-                  placeholder="Enter your password (min 6 characters)"
-                />
-                {errors.password && <div className="sr-err">{errors.password}</div>}
-              </div>
+  <label className="sr-label">Password *</label>
+  <div style={{ position: 'relative' }}>
+    <input
+      type={showPassword ? "text" : "password"}
+      className="sr-input"
+      value={form.password}
+      onChange={(e) => handleChange('password', e.target.value)}
+      placeholder="Enter password"
+      style={{ paddingRight: '45px' }}
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      style={{
+        position: 'absolute',
+        right: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        color: '#667eea'
+      }}
+    >
+      {showPassword ? '👁️' : '🙈'}  {/* OR use 👁️‍🗨️ for hidden */}
+    </button>
+  </div>
+  {errors.password && <div className="sr-err">{errors.password}</div>}
+</div>
+
 
               <div className="sr-form-group">
-                <label className="sr-label">Confirm Password *</label>
-                <input
-                  type="password"
-                  className="sr-input"
-                  value={form.confirmPassword}
-                  onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                  placeholder="Re-enter your password"
-                />
-                {errors.confirmPassword && <div className="sr-err">{errors.confirmPassword}</div>}
-              </div>
+  <label className="sr-label">Confirm Password *</label>
+  <div style={{ position: 'relative' }}>
+    <input
+      type={showConfirmPassword ? "text" : "password"}  // ← Use showConfirmPassword
+      className="sr-input"
+      value={form.confirmPassword}
+      onChange={(e) => handleChange('confirmPassword', e.target.value)}
+      placeholder="Confirm password"
+      style={{ paddingRight: '45px' }}
+    />
+    <button
+      type="button"
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}  // ← Toggle confirmPassword
+      style={{
+        position: 'absolute',
+        right: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        color: '#667eea'
+      }}
+    >
+      {showConfirmPassword ? '👁️' : '🙈'} {/* OR use 👁️‍🗨️ for hidden */} {/* Same icons, different state */}
+    </button>
+  </div>
+  {errors.confirmPassword && <div className="sr-err">{errors.confirmPassword}</div>}
+</div>
+
 
               <small className="sr-muted">
                 💡 Passwords must match and be at least 6 characters long.

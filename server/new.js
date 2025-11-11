@@ -22,6 +22,28 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // --- Database Connection ---
 let gfsBucket;
 
+const sessionSchema = new mongoose.Schema({
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesRegistration' },
+  loginTime: { type: Date, default: Date.now },
+  lastActive: { type: Date, default: Date.now },
+  sessionId: { type: String, unique: true },
+  isActive: { type: Boolean, default: true },
+});
+
+const Session = mongoose.model('Session', sessionSchema);
+// On login success
+// Make sure 'seller' and 'generatedSessionId' are defined before this block
+// Example:
+// const seller = await SalesRegistration.findOne({ contactEmail: email });
+// const generatedSessionId = crypto.randomBytes(24).toString('hex');
+//
+// const newSession = new Session({ sellerId: seller._id, sessionId: generatedSessionId });
+// await newSession.save();
+
+// On logout or timeout
+// await Session.updateOne({ sessionId }, { isActive: false }); // Removed because sessionId is not defined here
+
+
 
 mongoose.connect("mongodb+srv://arusuvai_user:pass_word@cluster0.2djnh8o.mongodb.net/e-commerce?retryWrites=true&w=majority&appName=Cluster0")
   .then(() => {
@@ -93,6 +115,8 @@ const salesRegistrationSchema = new mongoose.Schema({
   trademarkFileId: { type: mongoose.Schema.Types.ObjectId },
   brandLogoId: { type: mongoose.Schema.Types.ObjectId }, 
   authorizationLetterId: { type: mongoose.Schema.Types.ObjectId }, 
+  profilePictureId: { type: mongoose.Schema.Types.ObjectId, default: null },
+
   accountNumber: String,
   ifsc: String, 
   bankType: String, 
@@ -416,20 +440,25 @@ app.post("/api/seller-login", async (req, res) => {
     }
 
     // Successful login
-    return res.status(200).json({
-      success: true,
-      message: "Login successful!",
-      seller: {
-        requestId: seller.requestId,
-        contactName: seller.contactName,
-        contactEmail: seller.contactEmail,
-        contactNumber: seller.contactNumber,
-        brandName: seller.brandName,
-        status: seller.status,
-        categories: seller.categories,
-        createdAt: seller.createdAt,
-      },
-    });
+  // In new.js, find this section (around line 450-480)
+return res.status(200).json({
+  success: true,
+  message: "Login successful!",
+  seller: {
+    requestId: seller.requestId,
+    contactName: seller.contactName,
+    contactEmail: seller.contactEmail,
+    contactNumber: seller.contactNumber,
+    brandName: seller.brandName,
+    manufacturerName: seller.manufacturerName, // ADD THIS LINE
+    status: seller.status,
+    categories: seller.categories,
+    createdAt: seller.createdAt,
+    profilePictureId: seller.profilePictureId || null,
+  },
+});
+
+
   } catch (error) {
     console.error("❌ Login error:", error);
     return res.status(500).json({
@@ -1074,7 +1103,489 @@ app.post("/api/forgot-password/reset-password", async (req, res) => {
   }
 });
 
+app.post('/api/seller/upload-profile-picture', upload.single('profilePicture'), async (req, res) => {
+  try {
+    console.log('----- Profile Picture Upload -----');
+    // Step 1: File check
+    if (!req.file) {
+      console.log('❌ No file uploaded');
+      return res.status(400).json({ success: false, reason: "nofile", message: "No file uploaded. Check form field name and frontend logic." });
+    }
 
+    // Step 2: Seller ID check
+    if (!req.body.sellerId) {
+      console.log('❌ SellerID missing');
+      return res.status(400).json({ success: false, reason: "nosellerid", message: "Seller ID missing in upload payload." });
+    }
+
+    // Step 3: Seller existence check
+    const seller = await SalesRegistration.findOne({ requestId: req.body.sellerId });
+    if (!seller) {
+      console.log(`❌ Seller with requestId ${req.body.sellerId} not found`);
+      return res.status(400).json({ success: false, reason: "sellernotfound", message: "Seller not found in database." });
+    }
+
+    // Step 4: Upload to GridFS
+    const fileId = await uploadToGridFS(req.file, "profile-picture");
+    if (!fileId) {
+      console.log('❌ File was not uploaded to GridFS');
+      return res.status(500).json({ success: false, reason: "gridfsfail", message: "Failed to store file in GridFS." });
+    }
+
+    // Step 5: Update DB
+    const updateResult = await SalesRegistration.updateOne(
+      { requestId: req.body.sellerId },
+      { $set: { profilePictureId: fileId } }
+    );
+    if (updateResult.modifiedCount === 0) {
+      console.log('❌ Failed to update user profile with fileId');
+      return res.status(500).json({ success: false, reason: "dbupdatefail", message: "Failed to link profile picture to seller account." });
+    }
+
+    console.log('✅ Successfully uploaded and linked profile picture', fileId);
+    res.json({ success: true, profilePictureId: fileId });
+
+  } catch (err) {
+    console.log('❌ Unexpected error:', err);
+    res.status(500).json({ success: false, reason: "servererror", message: err.message });
+  }
+});
+
+
+// Add after SalesRegistration schema
+
+// --- Product Schema (Separate table, linked via foreign key) ---
+const productSchema = new mongoose.Schema({
+  // Foreign key to SalesRegistration
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesRegistration', required: true },
+  sellerRequestId: { type: String, required: true },
+  
+  // Section 1: Basic Details
+  category: { type: String, required: true },
+  customCategory: String,
+  hasVariation: { type: Boolean, default: false },
+  productId: String,
+  autoGeneratedSKU: { type: Boolean, default: false },
+  itemName: { type: String, required: true, maxlength: 100 },
+  manufacturer: String,
+  brandName: String,
+  
+  // Section 2: Offer & Pricing
+  sellerSKU: String,
+  sellingPrice: { type: Number, required: true },
+  listingPrice: { type: Number, required: true },
+  quantity: { type: Number, required: true, min: 0 },
+  itemCondition: { type: String, enum: ['New', 'Used'], required: true },
+  regionOfOrigin: String,
+  hsnCode: String,
+  mrp: { type: Number, required: true },
+  
+  // Section 3: Product Images
+  primaryImageId: { type: mongoose.Schema.Types.ObjectId },
+  additionalImageIds: [{ type: mongoose.Schema.Types.ObjectId }],
+  
+  // Section 4: Product Description
+  fullDescription: { type: String, required: true },
+  bulletPoints: [String],
+  
+  // Section 5: Technical Specifications
+  styleModelNumber: String,
+  dimensions: {
+    length: { value: Number, unit: String },
+    width: { value: Number, unit: String },
+    height: { value: Number, unit: String },
+    diameter: { value: Number, unit: String },
+    capacity: { value: Number, unit: String },
+    weight: { value: Number, unit: String },
+    thickness: { value: Number, unit: String },
+    sizeLabel: String
+  },
+  dimensionDescription: String,
+  unitCount: Number,
+  unitType: String,
+  modelName: String,
+  material: [String],
+  numberOfBoxes: Number,
+  
+  // Section 6: Variation
+  variations: {
+    color: [String],
+    itemShape: String,
+    size: [String],
+    storage: [String],
+    pattern: [String],
+    style: [String]
+  },
+  
+  // System fields
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  submittedAt: { type: Date, default: Date.now },
+  reviewedAt: Date,
+  rejectionReason: String
+}, { timestamps: true });
+
+const Product = mongoose.model('Product', productSchema);
+
+// ==================== ADD PRODUCT ROUTE ====================
+app.post('/api/products/add', 
+  upload.fields([
+    { name: 'primaryImage', maxCount: 1 },
+    { name: 'additionalImages', maxCount: 6 }
+  ]),
+  async (req, res) => {
+    try {
+      console.log('📦 New product submission received');
+      
+      // Get seller info from SalesRegistration
+      const seller = await SalesRegistration.findOne({ requestId: req.body.sellerRequestId });
+      if (!seller) {
+        return res.status(404).json({ success: false, message: 'Seller not found' });
+      }
+      
+      // Validation: Selling Price <= Listing Price
+      if (parseFloat(req.body.sellingPrice) > parseFloat(req.body.listingPrice)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Selling Price cannot be greater than Listing Price' 
+        });
+      }
+      
+      // Validation: Selling Price <= MRP
+      if (parseFloat(req.body.sellingPrice) > parseFloat(req.body.mrp)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Selling Price cannot be greater than MRP' 
+        });
+      }
+      
+      // Validation: If Used, Listing Price <= 50% of MRP
+      if (req.body.itemCondition === 'Used') {
+        const maxListingPrice = parseFloat(req.body.mrp) * 0.5;
+        if (parseFloat(req.body.listingPrice) > maxListingPrice) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `For used items, Listing Price must be <= 50% of MRP (₹${maxListingPrice})` 
+          });
+        }
+      }
+      
+      // Upload images to GridFS
+      const primaryImageId = await uploadToGridFS(req.files?.primaryImage?.[0], 'product-primary');
+      const additionalImageIds = [];
+      if (req.files?.additionalImages) {
+        for (const img of req.files.additionalImages) {
+          const imgId = await uploadToGridFS(img, 'product-additional');
+          additionalImageIds.push(imgId);
+        }
+      }
+      
+      // Generate auto SKU if needed
+      const productId = req.body.productId || `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
+      // Parse JSON fields
+      const productData = new Product({
+        sellerId: seller._id,
+        sellerRequestId: req.body.sellerRequestId,
+        category: req.body.category,
+        customCategory: req.body.customCategory,
+        hasVariation: req.body.hasVariation === 'true',
+        productId,
+        autoGeneratedSKU: !req.body.productId,
+        itemName: req.body.itemName,
+        manufacturer: req.body.manufacturer || seller.manufacturerName || 'Not Specified',
+        brandName: req.body.brandName || seller.brandName || 'Generic',
+        sellerSKU: req.body.sellerSKU,
+        sellingPrice: req.body.sellingPrice,
+        listingPrice: req.body.listingPrice,
+        quantity: req.body.quantity,
+        itemCondition: req.body.itemCondition,
+        regionOfOrigin: req.body.regionOfOrigin,
+        hsnCode: req.body.hsnCode,
+        mrp: req.body.mrp,
+        primaryImageId,
+        additionalImageIds,
+        fullDescription: req.body.fullDescription,
+        bulletPoints: JSON.parse(req.body.bulletPoints || '[]').filter(bp => bp.trim()),
+        styleModelNumber: req.body.styleModelNumber,
+        dimensions: JSON.parse(req.body.dimensions || '{}'),
+        dimensionDescription: req.body.dimensionDescription,
+        unitCount: req.body.unitCount,
+        unitType: req.body.unitType,
+        modelName: req.body.modelName,
+        material: JSON.parse(req.body.material || '[]'),
+        numberOfBoxes: req.body.numberOfBoxes,
+        variations: JSON.parse(req.body.variations || '{}')
+      });
+      
+      await productData.save();
+      console.log(`✅ Product saved: ${productData.itemName} (ID: ${productData._id})`);
+      
+      // Send confirmation email
+      const mailOptions = {
+        from: EMAIL_HOST_USER,
+        to: seller.contactEmail,
+        subject: '🎉 Product Submission Successful',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
+            <div style="background-color: #ffffff; padding: 30px; border-radius: 10px;">
+              <h2 style="color: #28a745; text-align: center;">🎉 Product Submission Successful!</h2>
+              
+              <p>Dear <strong>${seller.contactName}</strong>,</p>
+              
+              <p>Thank you for submitting your product listing. Our team will review your details and notify you shortly.</p>
+              <p style="color: #dc3545;"><strong>If approval takes more than 1 hour, please contact support: 7010186524</strong></p>
+              
+              <hr style="margin: 20px 0; border: none; border-top: 2px solid #ddd;">
+              
+              <h3>Product Details:</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0;"><strong>Product Name:</strong></td><td>${productData.itemName}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Brand:</strong></td><td>${productData.brandName}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Category:</strong></td><td>${productData.category}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Condition:</strong></td><td>${productData.itemCondition}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Seller SKU:</strong></td><td>${productData.sellerSKU || 'N/A'}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Quantity Added:</strong></td><td>${productData.quantity}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Region of Origin:</strong></td><td>${productData.regionOfOrigin || 'N/A'}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Request ID:</strong></td><td>${seller.requestId}</td></tr>
+              </table>
+              
+              <hr style="margin: 20px 0; border: none; border-top: 2px solid #ddd;">
+              
+              <p><strong>Submission Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              <p><strong>Review Status:</strong> <span style="color: #ffc107;">Pending Approval</span></p>
+              <p><strong>Shipping Address:</strong> ${seller.shippingAddress}</p>
+              <p><strong>Your Phone Number:</strong> ${seller.contactNumber}</p>
+              
+              <hr style="margin: 20px 0; border: none; border-top: 2px solid #ddd;">
+              
+              <p style="text-align: center; margin-top: 20px;">
+                You can track status in: <strong>My Listings → Pending</strong>
+              </p>
+              
+              <p style="margin-top: 30px;">Best regards,<br><strong>SellerHub Team</strong></p>
+            </div>
+          </div>
+        `
+      };
+      
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Confirmation email sent to: ${seller.contactEmail}`);
+      
+      // Return success with product and seller info
+      res.status(201).json({
+        success: true,
+        product: productData,
+        seller: {
+          requestId: seller.requestId,
+          contactName: seller.contactName,
+          contactNumber: seller.contactNumber,
+          shippingAddress: seller.shippingAddress,
+          contactEmail: seller.contactEmail
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error adding product:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+);
+
+// ==================== ADMIN ROUTES ====================
+
+// Get All Pending Products with Seller Details
+app.get('/api/admin/products/pending', async (req, res) => {
+  try {
+    const pendingProducts = await Product.find({ status: 'pending' })
+      .populate('sellerId')
+      .sort({ submittedAt: -1 });
+    
+    const productsWithSellerInfo = pendingProducts.map(product => ({
+      ...product.toObject(),
+      seller: {
+        contactName: product.sellerId.contactName,
+        contactEmail: product.sellerId.contactEmail,
+        contactNumber: product.sellerId.contactNumber,
+        shippingAddress: product.sellerId.shippingAddress,
+        requestId: product.sellerId.requestId,
+        brandName: product.sellerId.brandName,
+        manufacturerName: product.sellerId.manufacturerName
+      }
+    }));
+    
+    res.json({ success: true, products: productsWithSellerInfo });
+  } catch (error) {
+    console.error('❌ Error fetching pending products:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Approve Product
+app.post('/api/admin/products/approve', async (req, res) => {
+  try {
+    const { productId, adminMessage } = req.body;
+    
+    const product = await Product.findById(productId).populate('sellerId');
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    
+    // Update product status
+    await Product.updateOne(
+      { _id: productId },
+      { $set: { status: 'approved', reviewedAt: new Date() } }
+    );
+    
+    console.log(`✅ Product approved: ${product.itemName}`);
+    
+    // Send approval email
+    const mailOptions = {
+      from: EMAIL_HOST_USER,
+      to: product.sellerId.contactEmail,
+      subject: '🎉 Product Approved - Ready to Sell!',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
+          <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="color: #28a745; text-align: center;">✅ Product Approved!</h2>
+            
+            <p>Dear <strong>${product.sellerId.contactName}</strong>,</p>
+            
+            <p>Congratulations! Your product has been approved and is now ready to be listed on our platform.</p>
+            
+            <div style="background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Product Details:</h3>
+              <p style="margin: 5px 0;"><strong>Product Name:</strong> ${product.itemName}</p>
+              <p style="margin: 5px 0;"><strong>Category:</strong> ${product.category}</p>
+              <p style="margin: 5px 0;"><strong>Brand:</strong> ${product.brandName}</p>
+              <p style="margin: 5px 0;"><strong>Price:</strong> ₹${product.listingPrice}</p>
+              <p style="margin: 5px 0;"><strong>Quantity:</strong> ${product.quantity}</p>
+              <p style="margin: 5px 0;"><strong>Product ID:</strong> ${product.productId}</p>
+            </div>
+            
+            ${adminMessage ? `
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 0;"><strong>Message from Admin:</strong></p>
+                <p style="margin: 10px 0 0 0;">${adminMessage}</p>
+              </div>
+            ` : ''}
+            
+            <p><strong>What's Next?</strong></p>
+            <ul>
+              <li>Your product is now live on the platform</li>
+              <li>Customers can start ordering</li>
+              <li>Keep your inventory updated</li>
+              <li>Respond promptly to customer queries</li>
+            </ul>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="http://localhost:5173/seller-dashboard" 
+                 style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                View Dashboard
+              </a>
+            </div>
+            
+            <p style="margin-top: 30px;">Best regards,<br><strong>SellerHub Admin Team</strong></p>
+          </div>
+          
+          <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
+            This is an automated email. Please do not reply.
+          </p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Approval email sent to: ${product.sellerId.contactEmail}`);
+    
+    res.json({ success: true, message: 'Product approved successfully' });
+    
+  } catch (error) {
+    console.error('❌ Error approving product:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Reject Product
+app.post('/api/admin/products/reject', async (req, res) => {
+  try {
+    const { productId, rejectionReason } = req.body;
+    
+    const product = await Product.findById(productId).populate('sellerId');
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    
+    // Update product status
+    await Product.updateOne(
+      { _id: productId },
+      { $set: { status: 'rejected', reviewedAt: new Date(), rejectionReason } }
+    );
+    
+    console.log(`❌ Product rejected: ${product.itemName}`);
+    
+    // Send rejection email
+    const mailOptions = {
+      from: EMAIL_HOST_USER,
+      to: product.sellerId.contactEmail,
+      subject: 'Product Review Update - Action Required',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
+          <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="color: #dc3545; text-align: center;">Product Review Update</h2>
+            
+            <p>Dear <strong>${product.sellerId.contactName}</strong>,</p>
+            
+            <p>Thank you for submitting your product for review. After careful evaluation, we found that your product listing needs some modifications before it can be approved.</p>
+            
+            <div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #dc3545;">
+              <p style="margin: 0;"><strong>Reason for Rejection:</strong></p>
+              <p style="margin: 10px 0 0 0;">${rejectionReason}</p>
+            </div>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Product Details:</h3>
+              <p style="margin: 5px 0;"><strong>Product Name:</strong> ${product.itemName}</p>
+              <p style="margin: 5px 0;"><strong>Category:</strong> ${product.category}</p>
+              <p style="margin: 5px 0;"><strong>Product ID:</strong> ${product.productId}</p>
+            </div>
+            
+            <p><strong>What You Need to Do:</strong></p>
+            <ul>
+              <li>Review the rejection reason carefully</li>
+              <li>Make necessary corrections to your product listing</li>
+              <li>Resubmit the product for review</li>
+              <li>Ensure all details are accurate and meet our guidelines</li>
+            </ul>
+            
+            <p>If you have any questions or need clarification, please contact our support team at <strong>7010186524</strong>.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="http://localhost:5173/seller-dashboard/add-product" 
+                 style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                Edit & Resubmit Product
+              </a>
+            </div>
+            
+            <p style="margin-top: 30px;">Best regards,<br><strong>SellerHub Admin Team</strong></p>
+          </div>
+          
+          <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
+            This is an automated email. Please do not reply.
+          </p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Rejection email sent to: ${product.sellerId.contactEmail}`);
+    
+    res.json({ success: true, message: 'Product rejected successfully' });
+    
+  } catch (error) {
+    console.error('❌ Error rejecting product:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 
 // ==================== 404 HANDLER ====================

@@ -514,23 +514,28 @@ html {
   font-weight: 600;
 }
 
-/* Signature pad container */
+/* NEW - Light gray background to see black ink better */
 .sr-signature-container {
   border: 2px dashed #94a3b8;
   border-radius: 8px;
-  background: #ffffff;
+  background: #f8f9fa;  /* ← Changed from white */
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: crosshair;
   margin: 16px 0;
+  padding: 12px;  /* ← Added padding */
 }
 
 .sr-signature-canvas {
   width: 100%;
   max-width: 600px;
   height: 200px;
+  background: white !important;  /* ← Force white canvas background */
+  border: 1px solid #e5e7eb;  /* ← Added border around canvas */
+  border-radius: 4px;
 }
+
 
 .sr-signature-actions {
   margin-top: 10px;

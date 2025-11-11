@@ -1,8 +1,11 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import './LoginPage.css';
-
+import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import Dashboard from './Dashboard';
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -27,10 +30,30 @@ const LoginPage = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Login submitted:', { email, password });
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  // Call backend API
+  const response = await fetch('/api/seller-login', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const result = await response.json();
+
+  if (result.success) {
+    // Save session with 1-hour expiry
+    const sessionData = {
+      seller: result.seller,
+      expiresAt: Date.now() + 60 * 60 * 1000,
+    };
+    localStorage.setItem('sellerSession', JSON.stringify(sessionData));
+    // Redirect with contactName
+    navigate('/dashboard');
+  } else {
+    // Handle error
+  }
+};
+
 
   return (
     <div className="login-container" onMouseMove={handleMouseMove}>

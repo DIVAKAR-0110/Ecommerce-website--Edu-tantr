@@ -2,8 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, TrendingUp, Package, DollarSign, BarChart3, Star, Zap, Award, Eye, EyeOff, Sparkles, Store, Users, Mail, Lock, CheckCircle } from 'lucide-react';
 import './SellerLogin.css';
+import { useNavigate } from 'react-router-dom';
+
+
 
 const SellerLogin = () => {
+  const navigate = useNavigate();
+
   // Authentication Steps: 'email' -> 'otp' -> 'login'
   const [authStep, setAuthStep] = useState('email');
   const [email, setEmail] = useState('');
@@ -183,59 +188,56 @@ const SellerLogin = () => {
     }
   };
 
-  // Handle Login Submit with Database Verification
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-    
-    if (!password) {
-      setErrorMessage('Please enter your password');
-      return;
-    }
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setErrorMessage('');
+  setSuccessMessage('');
+  
+  if (!password) {
+    setErrorMessage('Please enter your password');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const response = await fetch('http://localhost:3000/api/seller-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+  try {
+    const response = await fetch('http://localhost:3000/api/seller-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      setSuccessMessage('Login successful! Redirecting to dashboard...');
+
+      // ✅ UPDATED: Save manufacturerName to localStorage
+      const sessionData = {
+        seller: {
+          ...data.seller,
+          profilePictureId: data.seller.profilePictureId || null,
+          manufacturerName: data.seller.manufacturerName || null, // ADD THIS
         },
-        body: JSON.stringify({ email, password }),
-      });
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      };
+      localStorage.setItem('sellerSession', JSON.stringify(sessionData));
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setSuccessMessage('Login successful! Redirecting to dashboard...');
-        
-        // Store user data if remember me is checked
-        if (rememberMe) {
-          localStorage.setItem('sellerData', JSON.stringify(data.seller));
-        } else {
-          sessionStorage.setItem('sellerData', JSON.stringify(data.seller));
-        }
-
-        console.log('Login successful:', data.seller);
-        
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          // Replace with your dashboard route
-          window.location.href = '/seller-dashboard';
-          // Or if using React Router: navigate('/seller-dashboard');
-        }, 2000);
-
-      } else {
-        setErrorMessage(data.message || 'Login failed. Please check your credentials.');
-      }
-    } catch (error) {
-      console.error('Error during login:', error);
-      setErrorMessage('Network error. Please try again.');
-    } finally {
-      setLoading(false);
+      navigate('/seller-dashboard');
+    } else {
+      setErrorMessage(data.message || 'Login failed. Please check your credentials.');
     }
-  };
+
+  } catch (error) {
+    console.error('Error during login:', error);
+    setErrorMessage('Network error. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Change Email (Go back to email step)
   const handleChangeEmail = () => {

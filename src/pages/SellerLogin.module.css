@@ -1,4 +1,11 @@
-/* SellerLogin.css - Premium Animated
+/* SellerLogin.css - Premium Animated Login */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .seller-login-container {
   display: flex;
   min-height: 100vh;

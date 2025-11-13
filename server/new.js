@@ -286,13 +286,11 @@ app.get("/api/sales-registrations", async (req, res) => {
 
 
 // ==================== EMAIL OTP ROUTES ====================
-
-
 app.post("/api/send-otp", async (req, res) => {
   try {
     const { email } = req.body;
 
-
+    // Step 1: Validate email format
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ 
         success: false, 
@@ -300,7 +298,17 @@ app.post("/api/send-otp", async (req, res) => {
       });
     }
 
+    // Step 2: ✅ Check if email exists in SalesRegistration (FIXED: use contactEmail)
+    const existingSeller = await SalesRegistration.findOne({ contactEmail: email });
 
+    if (!existingSeller) {
+      return res.status(404).json({
+        success: false,
+        message: "We cannot find an account with that email address. Make sure you are registered as a seller.",
+      });
+    }
+
+    // Step 3: Generate OTP (only if email exists)
     const otp = generateOTP();
     
     otpStore.set(email, {
@@ -309,7 +317,7 @@ app.post("/api/send-otp", async (req, res) => {
       attempts: 0
     });
 
-
+    // Step 4: Create email template
     const mailOptions = {
       from: EMAIL_HOST_USER,
       to: email,
@@ -330,16 +338,14 @@ app.post("/api/send-otp", async (req, res) => {
       `,
     };
 
-
+    // Step 5: Send email
     await transporter.sendMail(mailOptions);
     console.log(`✓ OTP sent to ${email}: ${otp}`);
-
 
     res.status(200).json({
       success: true,
       message: "OTP sent successfully to your email",
     });
-
 
   } catch (error) {
     console.error("❌ Error sending OTP:", error);
@@ -350,7 +356,6 @@ app.post("/api/send-otp", async (req, res) => {
     });
   }
 });
-
 
 app.post("/api/verify-otp", (req, res) => {
   try {

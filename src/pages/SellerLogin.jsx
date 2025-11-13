@@ -1,10 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, TrendingUp, Package, DollarSign, BarChart3, Star, Zap, Award, Eye, EyeOff, Sparkles, Store, Users, Mail, Lock, CheckCircle } from 'lucide-react';
-import './SellerLogin.css';
+import styles from './SellerLogin.module.css';
 import { useNavigate } from 'react-router-dom';
-
-
 
 const SellerLogin = () => {
   const navigate = useNavigate();
@@ -68,13 +66,11 @@ const SellerLogin = () => {
     }
   };
 
-  // Send OTP to Email
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
       setErrorMessage('Please enter a valid email address');
@@ -86,9 +82,7 @@ const SellerLogin = () => {
     try {
       const response = await fetch('http://localhost:3000/api/send-otp', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
@@ -111,7 +105,6 @@ const SellerLogin = () => {
     }
   };
 
-  // Resend OTP
   const handleResendOTP = async () => {
     if (!canResend) return;
     
@@ -122,9 +115,7 @@ const SellerLogin = () => {
     try {
       const response = await fetch('http://localhost:3000/api/send-otp', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
@@ -146,7 +137,6 @@ const SellerLogin = () => {
     }
   };
 
-  // Verify OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -162,9 +152,7 @@ const SellerLogin = () => {
     try {
       const response = await fetch('http://localhost:3000/api/verify-otp', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp }),
       });
 
@@ -188,58 +176,52 @@ const SellerLogin = () => {
     }
   };
 
- const handleLogin = async (e) => {
-  e.preventDefault();
-  setErrorMessage('');
-  setSuccessMessage('');
-  
-  if (!password) {
-    setErrorMessage('Please enter your password');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await fetch('http://localhost:3000/api/seller-login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.success) {
-      setSuccessMessage('Login successful! Redirecting to dashboard...');
-
-      // ✅ UPDATED: Save manufacturerName to localStorage
-      const sessionData = {
-        seller: {
-          ...data.seller,
-          profilePictureId: data.seller.profilePictureId || null,
-          manufacturerName: data.seller.manufacturerName || null, // ADD THIS
-        },
-        expiresAt: Date.now() + 60 * 60 * 1000,
-      };
-      localStorage.setItem('sellerSession', JSON.stringify(sessionData));
-
-      navigate('/seller-dashboard');
-    } else {
-      setErrorMessage(data.message || 'Login failed. Please check your credentials.');
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+    
+    if (!password) {
+      setErrorMessage('Please enter your password');
+      return;
     }
 
-  } catch (error) {
-    console.error('Error during login:', error);
-    setErrorMessage('Network error. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
 
+    try {
+      const response = await fetch('http://localhost:3000/api/seller-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-  // Change Email (Go back to email step)
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage('Login successful! Redirecting to dashboard...');
+
+        const sessionData = {
+          seller: {
+            ...data.seller,
+            profilePictureId: data.seller.profilePictureId || null,
+            manufacturerName: data.seller.manufacturerName || null,
+          },
+          expiresAt: Date.now() + 60 * 60 * 1000,
+        };
+        localStorage.setItem('sellerSession', JSON.stringify(sessionData));
+
+        navigate('/seller-dashboard');
+      } else {
+        setErrorMessage(data.message || 'Login failed. Please check your credentials.');
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      setErrorMessage('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChangeEmail = () => {
     setAuthStep('email');
     setOtp('');
@@ -266,64 +248,54 @@ const SellerLogin = () => {
   ];
 
   return (
-    <div className={`seller-login-container ${isLoaded ? 'loaded' : ''}`}>
-      {/* Left Visual Panel */}
-      <div 
-        className="left-panel"
-        ref={leftPanelRef}
-        onMouseMove={handleMouseMove}
-      >
-        {/* Animated Background Gradients */}
-        <div className="gradient-bg">
-          <div className="gradient-orb orb-1"></div>
-          <div className="gradient-orb orb-2"></div>
-          <div className="gradient-orb orb-3"></div>
-          <div className="gradient-orb orb-4"></div>
+    <div className={`${styles['seller-login-container']} ${isLoaded ? styles.loaded : ''}`}>
+      <div className={styles['left-panel']} ref={leftPanelRef} onMouseMove={handleMouseMove}>
+        <div className={styles['gradient-bg']}>
+          <div className={`${styles['gradient-orb']} ${styles['orb-1']}`}></div>
+          <div className={`${styles['gradient-orb']} ${styles['orb-2']}`}></div>
+          <div className={`${styles['gradient-orb']} ${styles['orb-3']}`}></div>
+          <div className={`${styles['gradient-orb']} ${styles['orb-4']}`}></div>
         </div>
 
-        {/* Animated Waves */}
-        <div className="waves-container">
-          <div className="wave wave-1"></div>
-          <div className="wave wave-2"></div>
-          <div className="wave wave-3"></div>
-          <div className="wave wave-4"></div>
+        <div className={styles['waves-container']}>
+          <div className={`${styles.wave} ${styles['wave-1']}`}></div>
+          <div className={`${styles.wave} ${styles['wave-2']}`}></div>
+          <div className={`${styles.wave} ${styles['wave-3']}`}></div>
+          <div className={`${styles.wave} ${styles['wave-4']}`}></div>
         </div>
 
-        {/* Particle Effects */}
-        <div className="particles">
+        <div className={styles.particles}>
           {[...Array(25)].map((_, i) => (
-            <div key={i} className="particle" style={{ animationDelay: `${i * 0.3}s` }}></div>
+            <div key={i} className={styles.particle} style={{ animationDelay: `${i * 0.3}s` }}></div>
           ))}
         </div>
 
-        {/* Glassmorphism Panel */}
-        <div className="glass-panel">
-          <div className="brand-icon">
+        <div className={styles['glass-panel']}>
+          <div className={styles['brand-icon']}>
             <Store size={40} />
           </div>
-          <h1 className="brand-title">SellerHub</h1>
-          <p className="brand-subtitle">Elevate Your E-Commerce Journey</p>
-          <div className="stats-grid">
-            <div className="stat-item">
+          <h1 className={styles['brand-title']}>SellerHub</h1>
+          <p className={styles['brand-subtitle']}>Elevate Your E-Commerce Journey</p>
+          <div className={styles['stats-grid']}>
+            <div className={styles['stat-item']}>
               <TrendingUp size={24} />
               <span>+250% Growth</span>
             </div>
-            <div className="stat-item">
+            <div className={styles['stat-item']}>
               <Star size={24} />
               <span>4.9★ Rating</span>
             </div>
-            <div className="stat-item">
+            <div className={styles['stat-item']}>
               <Package size={24} />
               <span>50K+ Orders</span>
             </div>
           </div>
         </div>
 
-        {/* Floating Holographic Icons */}
         {floatingIcons.map(({ Icon, delay, position }, index) => (
           <div
             key={index}
-            className="floating-icon"
+            className={styles['floating-icon']}
             style={{
               top: position.top,
               left: position.left,
@@ -336,141 +308,131 @@ const SellerLogin = () => {
           </div>
         ))}
 
-        {/* Seller Illustration */}
-        <div className="seller-illustration">
-          <div className="illustration-glow"></div>
-          <div className="illustration-ring"></div>
+        <div className={styles['seller-illustration']}>
+          <div className={styles['illustration-glow']}></div>
+          <div className={styles['illustration-ring']}></div>
         </div>
       </div>
 
-      {/* Right Panel - Dynamic Content Based on Auth Step */}
-      <div className="right-panel">
-        <div className="login-form-wrapper">
+      <div className={styles['right-panel']}>
+        <div className={styles['login-form-wrapper']}>
           
-          {/* STEP 1: Email Verification Dialog */}
-         {/* STEP 1: Email Verification Dialog */}
-{authStep === 'email' && (
-  <>
-    <div className="form-header">
-      <div className="icon-wrapper">
-        <Mail size={48} className="header-icon" />
-      </div>
-      <h2 className="welcome-title">Verify Your Email 📧</h2>
-      <p className="welcome-subtitle">Enter your email to receive a verification code</p>
-    </div>
-
-    <div className="login-form">
-      {errorMessage && (
-        <div className="message-box error-message">
-          {errorMessage}
-        </div>
-      )}
-      
-      {successMessage && (
-        <div className="message-box success-message">
-          {successMessage}
-        </div>
-      )}
-
-      <form onSubmit={handleSendOTP}>
-        <div className={`input-group ${emailFocused ? 'focused' : ''}`}>
-          <label htmlFor="email">Email Address</label>
-          <div className="input-wrapper">
-            <Mail className="input-icon" size={20} />
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              placeholder="seller@example.com"
-              disabled={loading}
-            />
-            <div className="input-glass-effect"></div>
-          </div>
-        </div>
-
-        <button type="submit" className="login-button" disabled={loading}>
-          <span className="button-text">
-            {loading ? 'Sending OTP...' : 'Send Verification Code'}
-          </span>
-          <span className="button-shine"></span>
-          <Sparkles className="button-icon" size={18} />
-        </button>
-      </form>
-
-      <div className="divider">
-        <span>or</span>
-      </div>
-
-      {/* NEW: Enhanced Secondary Actions with Icons */}
-      <div className="secondary-actions-grid">
-        <a href="/SalesRegister" className="action-card create-account">
-          <div className="action-icon-wrapper">
-            <Users size={24} />
-          </div>
-          <div className="action-content">
-            <h4>Create New Account</h4>
-            <p>Join as a new seller</p>
-          </div>
-          <div className="action-arrow">→</div>
-        </a>
-
-        <a href="/Forgot" className="action-card forgot-password">
-          <div className="action-icon-wrapper">
-            <Lock size={24} />
-          </div>
-          <div className="action-content">
-            <h4>Forgot Password?</h4>
-            <p>Reset your credentials</p>
-          </div>
-          <div className="action-arrow">→</div>
-        </a>
-      </div>
-    </div>
-  </>
-)}
-
-
-          {/* STEP 2: OTP Verification Dialog */}
-          {authStep === 'otp' && (
+          {authStep === 'email' && (
             <>
-              <div className="form-header">
-                <div className="icon-wrapper">
-                  <Lock size={48} className="header-icon" />
+              <div className={styles['form-header']}>
+                <div className={styles['icon-wrapper']}>
+                  <Mail size={48} className={styles['header-icon']} />
                 </div>
-                <h2 className="welcome-title">Enter Verification Code 🔐</h2>
-                <p className="welcome-subtitle">
-                  We sent a 6-digit code to <strong>{email}</strong>
-                </p>
-                <button 
-                  className="change-email-btn"
-                  onClick={handleChangeEmail}
-                >
-                  Change Email
-                </button>
+                <h2 className={styles['welcome-title']}>Verify Your Email 📧</h2>
+                <p className={styles['welcome-subtitle']}>Enter your email to receive a verification code</p>
               </div>
 
-              <div className="login-form">
+              <div className={styles['login-form']}>
                 {errorMessage && (
-                  <div className="message-box error-message">
+                  <div className={`${styles['message-box']} ${styles['error-message']}`}>
                     {errorMessage}
                   </div>
                 )}
                 
                 {successMessage && (
-                  <div className="message-box success-message">
+                  <div className={`${styles['message-box']} ${styles['success-message']}`}>
+                    {successMessage}
+                  </div>
+                )}
+
+                <form onSubmit={handleSendOTP}>
+                  <div className={`${styles['input-group']} ${emailFocused ? styles.focused : ''}`}>
+                    <label htmlFor="email">Email Address</label>
+                    <div className={styles['input-wrapper']}>
+                      <Mail className={styles['input-icon']} size={20} />
+                      <input
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => setEmailFocused(false)}
+                        placeholder="seller@example.com"
+                        disabled={loading}
+                      />
+                      <div className={styles['input-glass-effect']}></div>
+                    </div>
+                  </div>
+
+                  <button type="submit" className={styles['login-button']} disabled={loading}>
+                    <span className={styles['button-text']}>
+                      {loading ? 'Sending OTP...' : 'Send Verification Code'}
+                    </span>
+                    <span className={styles['button-shine']}></span>
+                    <Sparkles className={styles['button-icon']} size={18} />
+                  </button>
+                </form>
+
+                <div className={styles.divider}>
+                  <span>or</span>
+                </div>
+
+                <div className={styles['secondary-actions-grid']}>
+                  <a href="/SalesRegister" className={`${styles['action-card']} ${styles['create-account']}`}>
+                    <div className={styles['action-icon-wrapper']}>
+                      <Users size={24} />
+                    </div>
+                    <div className={styles['action-content']}>
+                      <h4>Create New Account</h4>
+                      <p>Join as a new seller</p>
+                    </div>
+                    <div className={styles['action-arrow']}>→</div>
+                  </a>
+
+                  <a href="/Forgot" className={`${styles['action-card']} ${styles['forgot-password']}`}>
+                    <div className={styles['action-icon-wrapper']}>
+                      <Lock size={24} />
+                    </div>
+                    <div className={styles['action-content']}>
+                      <h4>Forgot Password?</h4>
+                      <p>Reset your credentials</p>
+                    </div>
+                    <div className={styles['action-arrow']}>→</div>
+                  </a>
+                </div>
+              </div>
+            </>
+          )}
+
+          {authStep === 'otp' && (
+            <>
+              <div className={styles['form-header']}>
+                <div className={styles['icon-wrapper']}>
+                  <Lock size={48} className={styles['header-icon']} />
+                </div>
+                <h2 className={styles['welcome-title']}>Enter Verification Code 🔐</h2>
+                <p className={styles['welcome-subtitle']}>
+                  We sent a 6-digit code to <strong>{email}</strong>
+                </p>
+                <button className={styles['change-email-btn']} onClick={handleChangeEmail}>
+                  Change Email
+                </button>
+              </div>
+
+              <div className={styles['login-form']}>
+                {errorMessage && (
+                  <div className={`${styles['message-box']} ${styles['error-message']}`}>
+                    {errorMessage}
+                  </div>
+                )}
+                
+                {successMessage && (
+                  <div className={`${styles['message-box']} ${styles['success-message']}`}>
                     <CheckCircle size={18} />
                     {successMessage}
                   </div>
                 )}
 
                 <form onSubmit={handleVerifyOTP}>
-                  <div className={`input-group ${otpFocused ? 'focused' : ''}`}>
+                  <div className={`${styles['input-group']} ${otpFocused ? styles.focused : ''}`}>
                     <label htmlFor="otp">Verification Code</label>
-                    <div className="input-wrapper">
-                      <Lock className="input-icon" size={20} />
+                    <div className={styles['input-wrapper']}>
+                      <Lock className={styles['input-icon']} size={20} />
                       <input
                         type="text"
                         id="otp"
@@ -485,19 +447,19 @@ const SellerLogin = () => {
                         maxLength={6}
                         disabled={loading}
                       />
-                      <div className="input-glass-effect"></div>
+                      <div className={styles['input-glass-effect']}></div>
                     </div>
                   </div>
 
-                  <div className="otp-timer-section">
+                  <div className={styles['otp-timer-section']}>
                     {!canResend ? (
-                      <p className="timer-text">
-                        Resend code in <span className="timer-count">{timer}s</span>
+                      <p className={styles['timer-text']}>
+                        Resend code in <span className={styles['timer-count']}>{timer}s</span>
                       </p>
                     ) : (
                       <button
                         type="button"
-                        className="resend-btn"
+                        className={styles['resend-btn']}
                         onClick={handleResendOTP}
                         disabled={loading}
                       >
@@ -506,63 +468,60 @@ const SellerLogin = () => {
                     )}
                   </div>
 
-                  <button type="submit" className="login-button" disabled={loading}>
-                    <span className="button-text">
+                  <button type="submit" className={styles['login-button']} disabled={loading}>
+                    <span className={styles['button-text']}>
                       {loading ? 'Verifying...' : 'Verify & Continue'}
                     </span>
-                    <span className="button-shine"></span>
-                    <CheckCircle className="button-icon" size={18} />
+                    <span className={styles['button-shine']}></span>
+                    <CheckCircle className={styles['button-icon']} size={18} />
                   </button>
                 </form>
               </div>
             </>
           )}
 
-          {/* STEP 3: Login Form (After Email Verified) */}
           {authStep === 'login' && (
             <>
-              <div className="form-header">
-                <h2 className="welcome-title">Welcome Seller! 🚀</h2>
-                <p className="welcome-subtitle">Manage your store, sales & insights</p>
+              <div className={styles['form-header']}>
+                <h2 className={styles['welcome-title']}>Welcome Seller! 🚀</h2>
+                <p className={styles['welcome-subtitle']}>Manage your store, sales & insights</p>
               </div>
 
-              <div className="login-form">
+              <div className={styles['login-form']}>
                 {errorMessage && (
-                  <div className="message-box error-message">
+                  <div className={`${styles['message-box']} ${styles['error-message']}`}>
                     {errorMessage}
                   </div>
                 )}
 
                 {successMessage && (
-                  <div className="message-box success-message">
+                  <div className={`${styles['message-box']} ${styles['success-message']}`}>
                     <CheckCircle size={18} />
                     {successMessage}
                   </div>
                 )}
 
                 <form onSubmit={handleLogin}>
-                  {/* Email Input - Pre-filled and Disabled */}
-                  <div className="input-group">
+                  <div className={styles['input-group']}>
                     <label htmlFor="login-email">Email Address</label>
-                    <div className="input-wrapper verified-input">
-                      <Mail className="input-icon" size={20} />
+                    <div className={`${styles['input-wrapper']} ${styles['verified-input']}`}>
+                      <Mail className={styles['input-icon']} size={20} />
                       <input
                         type="email"
                         id="login-email"
                         value={email}
                         disabled
-                        className="verified-email"
+                        className={styles['verified-email']}
                       />
-                      <CheckCircle className="verified-icon" size={20} />
-                      <div className="input-glass-effect"></div>
+                      <CheckCircle className={styles['verified-icon']} size={20} />
+                      <div className={styles['input-glass-effect']}></div>
                     </div>
                   </div>
 
-                  {/* Password Input */}
-                  <div className={`input-group ${passwordFocused ? 'focused' : ''}`}>
+                  <div className={`${styles['input-group']} ${passwordFocused ? styles.focused : ''}`}>
                     <label htmlFor="password">Password</label>
-                    <div className="input-wrapper password-wrapper">
-                      <Lock className="input-icon" size={20} />
+                    <div className={`${styles['input-wrapper']} ${styles['password-wrapper']}`}>
+                      <Lock className={styles['input-icon']} size={20} />
                       <input
                         type={showPassword ? "text" : "password"}
                         id="password"
@@ -575,52 +534,51 @@ const SellerLogin = () => {
                       />
                       <button
                         type="button"
-                        className="password-toggle"
+                        className={styles['password-toggle']}
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
-                      <div className="input-glass-effect"></div>
+                      <div className={styles['input-glass-effect']}></div>
                     </div>
                   </div>
 
-                  <div className="form-options">
-                    <label className="remember-me">
+                  <div className={styles['form-options']}>
+                    <label className={styles['remember-me']}>
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
                       />
-                      <span className="checkbox-custom"></span>
+                      <span className={styles['checkbox-custom']}></span>
                       <span>Remember Me</span>
                     </label>
-                    <a href="/Forgot" className="forgot-link">Forgot Password?</a>
+                    <a href="/Forgot" className={styles['forgot-link']}>Forgot Password?</a>
                   </div>
 
-                  <button type="submit" className="login-button" disabled={loading}>
-                    <span className="button-text">
+                  <button type="submit" className={styles['login-button']} disabled={loading}>
+                    <span className={styles['button-text']}>
                       {loading ? 'Logging in...' : 'Login to Dashboard'}
                     </span>
-                    <span className="button-shine"></span>
-                    <Sparkles className="button-icon" size={18} />
+                    <span className={styles['button-shine']}></span>
+                    <Sparkles className={styles['button-icon']} size={18} />
                   </button>
                 </form>
 
-                <div className="divider">
+                <div className={styles.divider}>
                   <span>or</span>
                 </div>
 
-                <div className="secondary-actions">
-                  <p>Don't have an account? <a href="/SalesRegister" className="signup-link">Create Account</a></p>
+                <div className={styles['secondary-actions']}>
+                  <p>Don't have an account? <a href="/SalesRegister" className={styles['signup-link']}>Create Account</a></p>
                 </div>
               </div>
 
-              {/* Premium Features Badge */}
-              <div className="premium-badge">
+              <div className={styles['premium-badge']}>
                 <Zap size={16} />
                 <span>Premium Seller Portal</span>
-                <div className="badge-glow"></div>
+                <div className={styles['badge-glow']}></div>
               </div>
             </>
           )}

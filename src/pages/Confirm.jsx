@@ -1,4 +1,4 @@
- 
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import './Confirm.css';
 
@@ -10,6 +10,7 @@ const Confirm = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const defaultApprovalMessage = `Dear Seller,
 
@@ -97,7 +98,7 @@ SellerHub Admin Team`;
       if (data.success) {
         alert('Product approved successfully! Email sent to seller.');
         setShowApproveDialog(false);
-        fetchPendingProducts(); // Refresh list
+        fetchPendingProducts();
       } else {
         alert('Failed to approve product: ' + data.message);
       }
@@ -128,7 +129,7 @@ SellerHub Admin Team`;
       if (data.success) {
         alert('Product rejected successfully! Email sent to seller.');
         setShowRejectDialog(false);
-        fetchPendingProducts(); // Refresh list
+        fetchPendingProducts();
       } else {
         alert('Failed to reject product: ' + data.message);
       }
@@ -157,6 +158,42 @@ SellerHub Admin Team`;
         <div className="products-grid">
           {products.map((product) => (
             <div key={product._id} className="product-card">
+              {/* Product Images Section */}
+              <div className="section images-section">
+                <h3>📷 Product Images</h3>
+                <div className="images-container">
+                  {/* Primary Image */}
+                  <div className="primary-image-wrapper">
+                    {product.primaryImageUrl ? (
+                      <img 
+                        src={product.primaryImageUrl} 
+                        alt={product.itemName} 
+                        className="primary-image"
+                      />
+                    ) : (
+                      <div className="no-image">No Primary Image</div>
+                    )}
+                  </div>
+                  
+                  {/* Additional Images */}
+                  {product.additionalImagesUrls && product.additionalImagesUrls.length > 0 && (
+                    <div className="additional-images">
+                      <strong className="additional-label">Additional Images:</strong>
+                      <div className="additional-images-grid">
+                        {product.additionalImagesUrls.map((imgUrl, idx) => (
+                          <img 
+                            key={idx}
+                            src={imgUrl} 
+                            alt={`Additional ${idx + 1}`} 
+                            className="additional-image"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Seller Information */}
               <div className="section seller-info">
                 <h3>👤 Seller Information</h3>

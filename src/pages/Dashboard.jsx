@@ -132,20 +132,21 @@ const Dashboard = () => {
             className="dropdown-trigger"
             onClick={() => setShowViewMenu(!showViewMenu)}
           >
-            View Products ▾
+            View Inventory ▾
             {showViewMenu && (
               <ul className="dropdown">
-                <li>List All</li>
-                <li>By Category</li>
-                <li>By Name</li>
-                <li>By Quantity</li>
-                <li>Edit Product</li>
+                   <li onClick={() => navigate('/seller-dashboard/list-product')}>List All</li>
+                <li>Products By Category</li>
+                <li>Product By Name</li>
+                <li>Product By Quantity</li>
+                  <li onClick={() => navigate('/seller-dashboard/manage-inventory')}>Manage Inventory</li>
               </ul>
             )}
           </li>
 
-          <li>Remove Products</li>
+        
           <li>See Feedback</li>
+          <li>Orders Received</li>
           <li>Customers Purchased</li>
           <li>Product Reviews</li>
 

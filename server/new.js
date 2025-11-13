@@ -165,6 +165,44 @@ const uploadToGridFS = (file, category) => {
   });
 };
 
+// FILE RETRIEVAL ROUTE
+app.get('/api/files/:fileId', async (req, res) => {
+  try {
+    // ✅ ADD CORS HEADERS FOR html2canvas
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    
+    const fileId = new mongoose.Types.ObjectId(req.params.fileId);
+    
+    // Find file metadata
+    const files = await gfsBucket.find({ _id: fileId }).toArray();
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = files[0];
+    
+    // Set appropriate headers
+    res.set('Content-Type', file.contentType);
+    res.set('Content-Disposition', `inline; filename="${file.filename}"`);
+    
+    // Stream file from GridFS
+    const downloadStream = gfsBucket.openDownloadStream(fileId);
+    downloadStream.pipe(res);
+    
+    downloadStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({ error: 'Error retrieving file' });
+    });
+  } catch (error) {
+    console.error('File retrieval error:', error);
+    res.status(500).json({ error: 'Invalid file ID or server error' });
+  }
+});
+
+
 
 // ========================================
 // ROUTES
@@ -1226,6 +1264,25 @@ const productSchema = new mongoose.Schema({
 
 const Product = mongoose.model('Product', productSchema);
 
+
+// ==================== DELETED SKU SCHEMA ====================
+const deletedSKUSchema = new mongoose.Schema({
+  sku: { type: String, required: true, unique: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+  productName: { type: String, required: true },
+  sellerName: { type: String, required: true },
+  sellerRequestId: { type: String, required: true },
+  deletionReason: { type: String, required: true },
+  deletedAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, required: true }, // 24 hours from deletion
+  isBlocked: { type: Boolean, default: true }
+}, { timestamps: true });
+
+// Auto-remove blocked SKUs after 24 hours
+deletedSKUSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+const DeletedSKU = mongoose.model('DeletedSKU', deletedSKUSchema);
+
 // ==================== ADD PRODUCT ROUTE ====================
 app.post('/api/products/add', 
   upload.fields([
@@ -1393,7 +1450,7 @@ app.post('/api/products/add',
 
 // ==================== ADMIN ROUTES ====================
 
-// Get All Pending Products with Seller Details
+// ==================== GET PENDING PRODUCTS WITH IMAGES ====================
 app.get('/api/admin/products/pending', async (req, res) => {
   try {
     const pendingProducts = await Product.find({ status: 'pending' })
@@ -1410,7 +1467,10 @@ app.get('/api/admin/products/pending', async (req, res) => {
         requestId: product.sellerId.requestId,
         brandName: product.sellerId.brandName,
         manufacturerName: product.sellerId.manufacturerName
-      }
+      },
+      // Add image URLs
+      primaryImageUrl: product.primaryImageId ? `/api/files/${product.primaryImageId}` : null,
+      additionalImagesUrls: product.additionalImageIds.map(id => `/api/files/${id}`)
     }));
     
     res.json({ success: true, products: productsWithSellerInfo });
@@ -1586,6 +1646,407 @@ app.post('/api/admin/products/reject', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// ==================== GET SELLER'S PRODUCTS ====================
+app.get('/api/seller/products/:requestId', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    
+    // Find seller
+    const seller = await SalesRegistration.findOne({ requestId });
+    if (!seller) {
+      return res.status(404).json({ success: false, message: 'Seller not found' });
+    }
+    
+    // Find all products for this seller
+    const products = await Product.find({ sellerRequestId: requestId })
+      .sort({ submittedAt: -1 }); // Most recent first
+    
+    console.log(`✅ Retrieved ${products.length} products for seller: ${seller.contactName}`);
+    
+    res.json({
+      success: true,
+      seller: {
+        requestId: seller.requestId,
+        contactName: seller.contactName,
+        contactEmail: seller.contactEmail,
+        contactNumber: seller.contactNumber,
+        brandName: seller.brandName,
+        manufacturerName: seller.manufacturerName,
+        shippingAddress: seller.shippingAddress
+      },
+      products
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching seller products:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+// ==================== ADMIN - VIEW ALL PRODUCTS WITH SEARCH & FILTER ====================
+app.get('/api/admin/products/all', async (req, res) => {
+  try {
+    const { 
+      status, 
+      category, 
+      search, 
+      minPrice, 
+      maxPrice,
+      sortBy = 'submittedAt',
+      sortOrder = 'desc'
+    } = req.query;
+    
+    // Build query
+    let query = {};
+    
+    // Filter by status (all, pending, approved, rejected)
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    // Filter by category
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+    
+    // Price range filter
+    if (minPrice || maxPrice) {
+      query.listingPrice = {};
+      if (minPrice) query.listingPrice.$gte = parseFloat(minPrice);
+      if (maxPrice) query.listingPrice.$lte = parseFloat(maxPrice);
+    }
+    
+    // Search by product name, brand, or seller name
+    if (search && search.trim()) {
+      query.$or = [
+        { itemName: { $regex: search, $options: 'i' } },
+        { brandName: { $regex: search, $options: 'i' } },
+        { productId: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Fetch products with seller info
+    const products = await Product.find(query)
+      .populate('sellerId')
+      .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 });
+    
+    // Format response with seller info
+    const productsWithSeller = products.map(product => ({
+      ...product.toObject(),
+      seller: {
+        contactName: product.sellerId.contactName,
+        contactEmail: product.sellerId.contactEmail,
+        contactNumber: product.sellerId.contactNumber,
+        requestId: product.sellerId.requestId,
+        shippingAddress: product.sellerId.shippingAddress
+      },
+      primaryImageUrl: product.primaryImageId ? `/api/files/${product.primaryImageId}` : null
+    }));
+    
+    // Get unique categories for filter dropdown
+    const categories = await Product.distinct('category');
+    
+    console.log(`✅ Admin fetched ${productsWithSeller.length} products`);
+    
+    res.json({
+      success: true,
+      products: productsWithSeller,
+      categories,
+      totalCount: productsWithSeller.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching all products:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get single product details for modal view
+app.get('/api/admin/product/:productId', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const product = await Product.findById(productId).populate('sellerId');
+    
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    
+    const sellerInfo = {
+      requestId: product.sellerId.requestId,
+      contactName: product.sellerId.contactName,
+      contactEmail: product.sellerId.contactEmail,
+      contactNumber: product.sellerId.contactNumber,
+      shippingAddress: product.sellerId.shippingAddress,
+      brandName: product.sellerId.brandName,
+      manufacturerName: product.sellerId.manufacturerName,
+      gstNumber: product.sellerId.gstNumber,
+      panNumber: product.sellerId.panNumber
+    };
+    
+    const images = {
+      primary: product.primaryImageId ? `/api/files/${product.primaryImageId}` : null,
+      additional: product.additionalImageIds.map(id => `/api/files/${id}`)
+    };
+    
+    res.json({
+      success: true,
+      product: {
+        ...product.toObject(),
+        images
+      },
+      seller: sellerInfo
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching product:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== PRODUCT EDIT HISTORY SCHEMA ====================
+const productEditSchema = new mongoose.Schema({
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesRegistration', required: true },
+  sellerName: { type: String, required: true },
+  productName: { type: String, required: true },
+  sectionEdited: { type: String, required: true }, // e.g., "Basic Details", "Pricing"
+  fieldsEdited: [String], // Array of field names edited
+  oldValues: { type: Object }, // Store previous values
+  newValues: { type: Object }, // Store new values
+  editedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const ProductEdit = mongoose.model('ProductEdit', productEditSchema);
+
+
+// ==================== UPDATE PRODUCT WITH EDIT TRACKING ====================
+app.put('/api/seller/product/update', 
+  upload.fields([
+    { name: 'primaryImage', maxCount: 1 },
+    { name: 'additionalImages', maxCount: 6 }
+  ]),
+  async (req, res) => {
+    try {
+      const { 
+        productId, 
+        sellerRequestId, // ✅ FIXED: Changed from sellerId to sellerRequestId
+        section, 
+        fieldsToEdit, 
+        updates 
+      } = req.body;
+
+      console.log('📝 Product edit request received');
+      console.log('Product ID:', productId);
+      console.log('Seller Request ID:', sellerRequestId);
+
+      // Fetch product and seller using requestId
+      const product = await Product.findById(productId);
+      const seller = await SalesRegistration.findOne({ requestId: sellerRequestId }); // ✅ FIXED
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+
+      if (!seller) {
+        return res.status(404).json({ success: false, message: 'Seller not found' });
+      }
+
+      // Parse updates
+      const updatesObj = JSON.parse(updates);
+      const fieldsArray = JSON.parse(fieldsToEdit);
+
+      // Store old values before update
+      const oldValues = {};
+      fieldsArray.forEach(field => {
+        oldValues[field] = product[field];
+      });
+
+      // Handle image uploads
+      if (req.files?.primaryImage) {
+        const primaryImageId = await uploadToGridFS(req.files.primaryImage[0], 'product-primary');
+        updatesObj.primaryImageId = primaryImageId;
+        oldValues.primaryImageId = product.primaryImageId;
+      }
+
+      if (req.files?.additionalImages) {
+        const additionalImageIds = [];
+        for (const img of req.files.additionalImages) {
+          const imgId = await uploadToGridFS(img, 'product-additional');
+          additionalImageIds.push(imgId);
+        }
+        updatesObj.additionalImageIds = additionalImageIds;
+        oldValues.additionalImageIds = product.additionalImageIds;
+      }
+
+      // Update product in database
+      await Product.updateOne(
+        { _id: productId },
+        { $set: updatesObj }
+      );
+
+      console.log(`✅ Product updated: ${product.itemName}`);
+
+      // Create edit history record
+      const editRecord = new ProductEdit({
+        productId: product._id,
+        sellerId: seller._id,
+        sellerName: seller.contactName,
+        productName: product.itemName,
+        sectionEdited: section,
+        fieldsEdited: fieldsArray,
+        oldValues,
+        newValues: updatesObj,
+        editedAt: new Date()
+      });
+
+      await editRecord.save();
+      console.log(`📋 Edit history saved for product: ${product.itemName}`);
+
+      res.json({
+        success: true,
+        message: 'Product updated successfully',
+        editRecord: {
+          editedAt: editRecord.editedAt,
+          fieldsEdited: editRecord.fieldsEdited,
+          section: editRecord.sectionEdited
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error updating product:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+);
+
+
+// ==================== GET EDIT HISTORY ====================
+app.get('/api/admin/product/edit-history/:productId', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const editHistory = await ProductEdit.find({ productId })
+      .sort({ editedAt: -1 });
+    
+    res.json({ success: true, editHistory });
+  } catch (error) {
+    console.error('❌ Error fetching edit history:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
+
+
+// ==================== DELETE PRODUCT ROUTE ====================
+app.delete('/api/seller/product/delete', async (req, res) => {
+  try {
+    const { productId, sellerRequestId, deletionReason } = req.body;
+
+    console.log('🗑️ Product deletion request received');
+
+    // Fetch product and seller
+    const product = await Product.findById(productId);
+    const seller = await SalesRegistration.findOne({ requestId: sellerRequestId });
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    if (!seller) {
+      return res.status(404).json({ success: false, message: 'Seller not found' });
+    }
+
+    // Check if SKU exists
+    if (!product.productId) {
+      return res.status(400).json({ success: false, message: 'Product has no SKU' });
+    }
+
+    // Create deleted SKU record (blocks for 24 hours)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    const deletedSKU = new DeletedSKU({
+      sku: product.productId,
+      productId: product._id,
+      productName: product.itemName,
+      sellerName: seller.contactName,
+      sellerRequestId: seller.requestId,
+      deletionReason,
+      deletedAt: new Date(),
+      expiresAt,
+      isBlocked: true
+    });
+
+    await deletedSKU.save();
+    console.log(`📋 SKU blocked for 24 hours: ${product.productId}`);
+
+    // Delete product from database
+    await Product.deleteOne({ _id: productId });
+    console.log(`✅ Product deleted: ${product.itemName}`);
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully. SKU blocked for 24 hours.',
+      deletedSKU: {
+        sku: deletedSKU.sku,
+        expiresAt: deletedSKU.expiresAt,
+        deletedAt: deletedSKU.deletedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting product:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== CHECK IF SKU IS BLOCKED ====================
+app.get('/api/check-sku/:sku', async (req, res) => {
+  try {
+    const { sku } = req.params;
+    
+    const blockedSKU = await DeletedSKU.findOne({ sku, isBlocked: true });
+    
+    if (blockedSKU) {
+      const hoursRemaining = Math.ceil((blockedSKU.expiresAt - Date.now()) / (1000 * 60 * 60));
+      
+      return res.json({
+        success: true,
+        isBlocked: true,
+        reason: blockedSKU.deletionReason,
+        expiresAt: blockedSKU.expiresAt,
+        hoursRemaining,
+        message: `This SKU is blocked for ${hoursRemaining} more hours`
+      });
+    }
+    
+    res.json({ success: true, isBlocked: false });
+    
+  } catch (error) {
+    console.error('❌ Error checking SKU:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== GET DELETED SKU HISTORY ====================
+app.get('/api/admin/deleted-skus', async (req, res) => {
+  try {
+    const deletedSKUs = await DeletedSKU.find()
+      .sort({ deletedAt: -1 });
+    
+    res.json({ success: true, deletedSKUs });
+  } catch (error) {
+    console.error('❌ Error fetching deleted SKUs:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
 
 
 // ==================== 404 HANDLER ====================
